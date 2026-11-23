@@ -835,7 +835,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
                   <div class="form-grid">
                     <div class="field full">
                       <label for="fName">الاسم الكامل <span class="req">*</span></label>
-                      <input type="text" id="fName" placeholder="أدخل إجابتك" autocomplete="name" />
+                      <input type="text" id="fName" placeholder="أدخل إجابتك" autocomplete="name" maxlength="100" />
                     </div>
                     <div class="field full">
                       <label for="fDept">القسم <span class="req">*</span></label>
@@ -880,8 +880,8 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
 
                 <!-- STEP 2 -->
                 <div class="wstep" id="wstep2">
-                  <h3>الدراسة</h3>
-                  <p class="wsub" id="step2Sub">حدّد دراستك — صباحي أو مسائي.</p>
+                  <h3>الدراسة والجنس</h3>
+                  <p class="wsub" id="step2Sub">حدّد دراستك وجنسك — صباحي أو مسائي.</p>
                   <div class="form-grid">
                     <div class="field full">
                       <label>الدراسة <span class="req">*</span></label>
@@ -891,12 +891,19 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
                       </div>
                       <p class="field-note hidden" id="morningOnlyNote">هذا القسم صباحي فقط — الدراسة المسائية غير متاحة له.</p>
                     </div>
+                    <div class="field full">
+                      <label>الجنس <span class="req">*</span></label>
+                      <div class="radio-row" role="radiogroup" aria-label="الجنس">
+                        <label class="radio-chip"><input type="radio" name="gender" value="male"><span>طالب</span></label>
+                        <label class="radio-chip"><input type="radio" name="gender" value="female"><span>طالبة</span></label>
+                      </div>
+                    </div>
                     <div class="field full hidden" id="tplPickWrap">
                       <label>اختر القالب <span class="req">*</span></label>
                       <div class="tpl-cards" id="tplPicker" role="radiogroup" aria-label="قالب الكتاب"></div>
                     </div>
                   </div>
-                  <span class="step-error" id="err2">يرجى اختيار الدراسة قبل المتابعة.</span>
+                  <span class="step-error" id="err2">يرجى اختيار الدراسة والجنس قبل المتابعة.</span>
                   <div class="wizard-nav">
                     <button type="button" class="btn btn-ghost" onclick="wizardBack(2)">
                       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
@@ -916,7 +923,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
                   <div class="form-grid">
                     <div class="field full" id="destFieldWrap">
                       <label for="fDest" id="destLabel">اسم المدرسة كاملاً <span class="req">*</span></label>
-                      <input type="text" id="fDest" placeholder="أدخل إجابتك" />
+                      <input type="text" id="fDest" placeholder="أدخل إجابتك" maxlength="200" />
                       <p class="field-note" id="destNote">اتركه فارغاً إذا كان طلبك تأييد</p>
                     </div>
                     <div id="dynFields" class="dyn-fields"></div>
@@ -1470,7 +1477,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
     <div class="form-grid">
       <div class="field full">
         <label for="eName">الاسم الكامل</label>
-        <input type="text" id="eName" />
+        <input type="text" id="eName" maxlength="100" />
       </div>
       <div class="field">
         <label>الجنس</label>
@@ -1488,7 +1495,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
       </div>
       <div class="field full">
         <label for="eDest">اسم المدرسة / الجهة الموجه لها التأييد</label>
-        <input type="text" id="eDest" />
+        <input type="text" id="eDest" maxlength="200" />
       </div>
       <div class="field">
         <label for="eDept">القسم</label>
@@ -1592,6 +1599,29 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
     }
   }catch(e){ db = null; auth = null; }
   var DB_ERR_MSG = "تعذّر الاتصال بقاعدة البيانات — تحقق من اتصالك بالإنترنت وحاول مجدداً.";
+  /* الحد اليومي المجاني لقاعدة البيانات (429) — رسالة مختلفة تماماً عن عطل الإنترنت */
+  var QUOTA_ERR_MSG = "وصلت قاعدة البيانات إلى حدها اليومي — حاول مجدداً غداً بعد الساعة 11:00 صباحاً.";
+  /* الضغط العالي وقت الذروة: تعارض مؤقت على عدّاد أرقام الطلبات — إعادة المحاولة تكفي */
+  var BUSY_ERR_MSG = "الضغط كبير على الموقع الآن — حاول مجدداً بعد لحظات.";
+  function isQuotaError(err){
+    if(!err) return false;
+    var code = String(err.code || "");
+    if(code === "resource-exhausted" || code === "429") return true;
+    var msg = String(err.message || "").toLowerCase();
+    return msg.indexOf("quota") !== -1 || msg.indexOf("resource-exhausted") !== -1 || msg.indexOf("429") !== -1;
+  }
+  function isBusyError(err){
+    if(!err) return false;
+    var code = String(err.code || "");
+    if(code === "aborted") return true;
+    return String(err.message || "").toLowerCase().indexOf("aborted") !== -1;
+  }
+  /* رسالة الخطأ المناسبة للسبب الحقيقي — لا نتهم الإنترنت عند نفاد الحصة */
+  function dbErrorMessage(err){
+    if(isQuotaError(err)) return QUOTA_ERR_MSG;
+    if(isBusyError(err)) return BUSY_ERR_MSG;
+    return DB_ERR_MSG;
+  }
 
   /* ---------- Data (Firestore هو المصدر الوحيد) ---------- */
   function todayStr(offset){
@@ -1628,14 +1658,20 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
   var lastMyId = null;
   var dbErrorShown = false;
 
-  function handleDbError(){
-    renderFeedError();
+  function handleDbError(err){
+    var msg = dbErrorMessage(err);
+    renderFeedError(msg);
     if(!$("viewAdmin").classList.contains("hidden")){
-      $("reqTableBody").innerHTML = '<tr class="empty-row"><td colspan="9">' + DB_ERR_MSG + '</td></tr>';
+      $("reqTableBody").innerHTML = '<tr class="empty-row"><td colspan="9">' + msg + '</td></tr>';
     }
-    if(!dbErrorShown){ dbErrorShown = true; toast(DB_ERR_MSG); }
+    if(!dbErrorShown){ dbErrorShown = true; toast(msg); }
   }
+  var requestsSubscribed = false;
   function subscribeRequests(){
+    /* لوحة الإدارة فقط: لا تُفتح مستمعات الطلبات إلا بعد تسجيل دخول الموظف.
+       فتح المجموعة كاملة لكل زائر كان يحرق الحصة اليومية المجانية. */
+    if(requestsSubscribed) return;
+    requestsSubscribed = true;
     var list = $("adminFeedList");
     if(list) list.innerHTML = '<li class="feed-item"><span class="fm" style="font-size:14px">جارٍ تحميل أحدث الطلبات…</span></li>';
     if(!db){ handleDbError(); return; }
@@ -1644,13 +1680,15 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
       feedRequests = snap.docs.map(docToReq);
       dbErrorShown = false;
       renderFeed();
-    }, function(err){ handleDbError(); });
-    /* المجموعة كاملة: لوحة الموظفين */
+    }, function(err){ handleDbError(err); });
+    /* المجموعة كاملة: لوحة الموظفين — تحديثات لحظية لأن وصول طلب جديد
+       أثناء عمل الموظف يجب أن يظهر فوراً. تُقرأ مرة واحدة عند الدخول
+       ثم التغييرات فقط، لا عند كل زائر. */
     db.collection("requests").orderBy("createdAt", "desc").onSnapshot(function(snap){
       requests = snap.docs.map(docToReq);
       dbErrorShown = false;
       if(!$("viewAdmin").classList.contains("hidden")) renderDashboard(false);
-    }, function(err){ handleDbError(); });
+    }, function(err){ handleDbError(err); });
   }
 
   /* ---------- إعدادات الموقع (Firestore: settings/site) ---------- */
@@ -1775,10 +1813,11 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
     settingsAlertShow(settingsDbFailed ? "err" : "");
   }
 
-  /* تحميل الإعدادات عند كل فتح للصفحة — لكل الزوار. أي فشل يبقي القيم الافتراضية بهدوء */
+  /* تحميل الإعدادات عند كل فتح للصفحة — قراءة واحدة لكل زائر (لا مستمع لحظي).
+     الإعدادات لا تتغير أثناء تصفح الطالب، والحفظ من اللوحة يحدّث القيم محلياً */
   function loadSiteSettings(){
     if(!db){ settingsDbFailed = true; settingsAlertShow("err"); return; }
-    db.collection("settings").doc("site").onSnapshot(function(snap){
+    db.collection("settings").doc("site").get().then(function(snap){
       settingsDbFailed = false;
       if(snap.exists){
         siteSettings = snap.data() || {};
@@ -1786,7 +1825,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
       }
       if(!settingsFormDirty) fillSettingsForm();
       else settingsAlertShow("");
-    }, function(err){
+    }).catch(function(err){
       /* صلاحيات أو اتصال: نبقى على الافتراضي ولا نكسر أي شيء */
       settingsDbFailed = true;
       settingsAlertShow("err");
@@ -1995,7 +2034,8 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
     for(var j = 0; j < BUILTIN_TEMPLATES.length; j++){ if(BUILTIN_TEMPLATES[j].id === id) return BUILTIN_TEMPLATES[j]; }
     return null;
   }
-  function selectedTemplate(){ return templateById(selectedTemplateId) || BUILTIN_TEMPLATES[0]; }
+  /* بلا اختيار جنس لا قالب افتراضي — لا مذكر ولا مؤنث يُفرض على الطالب */
+  function selectedTemplate(){ return templateById(selectedTemplateId) || null; }
   function isBuiltinTpl(tpl){ return tpl && BUILTIN_IDS.indexOf(tpl.id) !== -1; }
   function humanizeToken(tok){ return String(tok || "").replace(/_/g, " ").replace(/\s+/g, " ").trim(); }
   function detectKind(tokens){
@@ -2004,12 +2044,14 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
     if(tokens.indexOf("اسم_المدرسة_كاملاً") !== -1) return "doc";
     return "other";
   }
-  /* قالب أي طلب: من templateId إن وُجد، وإلا من نوعه وجنسه كما كان قبل سجل القوالب —
-     والجنس الفارغ (طلبات الطلاب الجديدة) يأخذ قالب الوثيقة الموحد */
+  /* قالب أي طلب: من templateId إن وُجد، وإلا من نوعه وجنسه —
+     والجنس غير المحدد لا يأخذ أي قالب (لا مذكر ولا مؤنث افتراضياً) */
   function templateForReq(r){
     if(r && r.templateId){ var t = templateById(r.templateId); if(t) return t; }
     if(r && r.type === "cert") return templateById("taeed");
-    return templateById((r && r.gender === "male") ? "wathiqa-male" : "wathiqa-female");
+    if(r && r.gender === "male") return templateById("wathiqa-male");
+    if(r && r.gender === "female") return templateById("wathiqa-female");
+    return null;
   }
   function seedBuiltinTemplates(){
     if(!db) return;
@@ -2031,13 +2073,15 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
       return String(a.name || "").localeCompare(String(b.name || ""), "ar");
     });
   }
-  function subscribeTemplates(){
+  /* قراءة واحدة للقوالب عند فتح الصفحة — لا مستمع لحظي: القوالب لا تتغير
+     أثناء تصفح الطالب، والرفع/الحذف من اللوحة يعيد التحميل صراحةً. */
+  function loadTemplates(){
     if(!db){
       templatesList = BUILTIN_TEMPLATES.slice();
       renderBookKindOthers(); resolveStudentTemplate(); renderTplList();
       return;
     }
-    db.collection("templates").orderBy("order").onSnapshot(function(snap){
+    db.collection("templates").orderBy("order").get().then(function(snap){
       if(snap.empty && !templatesSeedTried){
         templatesSeedTried = true;
         if(auth && auth.currentUser) seedBuiltinTemplates();
@@ -2067,7 +2111,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
         }
       }
       renderBookKindOthers(); resolveStudentTemplate(); renderTplList();
-    }, function(){
+    }).catch(function(){
       templatesList = BUILTIN_TEMPLATES.slice();
       renderBookKindOthers(); resolveStudentTemplate(); renderTplList();
     });
@@ -2110,19 +2154,22 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
       return tplKind(t) === kind && (tplGenderScope(t) === "both" || tplGenderScope(t) === gender);
     });
   }
-  /* حلّ القالب للطالب: وثيقة واحدة بتصميم واحد — قالب الوثيقة للمؤنث
-     (صياغة الأستاذ حسن الأصلية) هو المعتمد؛ وإن استبدله علي بقالب جديد
-     من نفس النوع والجنس يُستخدم البديل تلقائياً. المنتقي لا يظهر أبداً
-     في استمارة الطالب — يبقى كاحتياط لمنطق القوالب فقط. */
+  /* حلّ القالب للطالب حسب جنسه: المذكر يأخذ وثيقة المذكر، والمؤنث وثيقة
+     المؤنث (صياغة الأستاذ حسن الأصلية)؛ وإن استبدله علي بقالب جديد من
+     نفس النوع والجنس يُستخدم البديل تلقائياً. بلا جنس مختار لا قالب —
+     لا يُفرض المذكر ولا المؤنث افتراضياً. المنتقي لا يظهر أبداً في
+     استمارة الطالب — يبقى كاحتياط لمنطق القوالب فقط. */
   var tplPickerMatches = null;
   function resolveStudentTemplate(){
-    var matches = matchTemplates("doc", "female");
+    var g = selectedGender();
+    var matches = g ? matchTemplates("doc", g) : [];
     var canonical = null;
+    var canonicalId = g === "male" ? "wathiqa-male" : "wathiqa-female";
     for(var i = 0; i < matches.length; i++){
-      if(matches[i].id === "wathiqa-female"){ canonical = matches[i]; break; }
+      if(matches[i].id === canonicalId){ canonical = matches[i]; break; }
     }
-    if(!canonical) canonical = matches.length ? matches[0] : templateById("wathiqa-female");
-    selectedTemplateId = canonical ? canonical.id : "wathiqa-female";
+    if(!canonical) canonical = matches.length ? matches[0] : null;
+    selectedTemplateId = canonical ? canonical.id : "";
     tplPickerMatches = null;
     renderTplPicker();
     buildDynFields();
@@ -2229,7 +2276,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
       var label = humanizeToken(tok);
       var val = dynValues[tok] || "";
       return '<div class="field full"><label for="dyn-' + esc(tok) + '">' + esc(label) + ' <span class="req">*</span></label>' +
-        '<input type="text" id="dyn-' + esc(tok) + '" data-token="' + esc(tok) + '" placeholder="أدخل إجابتك" value="' + esc(val) + '" /></div>';
+        '<input type="text" id="dyn-' + esc(tok) + '" data-token="' + esc(tok) + '" placeholder="أدخل إجابتك" maxlength="200" value="' + esc(val) + '" /></div>';
     }).join("");
     zone.querySelectorAll("input[data-token]").forEach(function(el){
       el.addEventListener("input", function(){
@@ -2583,7 +2630,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
       '<div class="sign"><div class="name">' + SIGNER + '</div>' +
       '<div class="role">' + SIGNER_ROLE + '</div>' +
       '<div class="date">/&nbsp;&nbsp;&nbsp;&nbsp;/ 2026</div></div>';
-    var studentWord = r.gender === "female" ? "الطالبة" : "الطالب";
+    var studentWord = r.gender === "female" ? "الطالبة" : (r.gender === "male" ? "الطالب" : "الطالب/ة");
     return officialHead() + body + sign + copiesBlock(studentWord) + officialFoot();
   }
 
@@ -2694,6 +2741,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
         selectedTemplateId = (templatesList[0] && templatesList[0].id) || "wathiqa-male";
         resolveStudentTemplate();
       }
+      loadTemplates();
       toast("تم حذف القالب «" + (tpl.name || tpl.id) + "»");
     };
     deleteTemplateData(tpl).then(done).catch(function(){ toast(DB_ERR_MSG); });
@@ -2753,6 +2801,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
     if(btn){ btn.disabled = true; btn.style.opacity = ".65"; }
     saveTemplateFile(file, meta).then(function(){
       resetTplUploadForm();
+      loadTemplates();
       tplAlertShow("ok", "تم رفع القالب «" + meta.name + "» وحفظه.");
       toast("تمت إضافة القالب «" + meta.name + "»");
     }).catch(function(){
@@ -2927,7 +2976,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
   }
   /* ---------- Letter generation (verbatim official college templates) ---------- */
   function fill(val, placeholder, f){
-    var attr = f ? ' data-f="' + f + '"' : '';
+    var attr = f ? ' data-f="' + esc(f) + '"' : '';
     if(val && val.trim()){
       return '<span class="fill"' + attr + '>' + esc(val.trim()) + '</span>';
     }
@@ -2970,7 +3019,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
   }
   function letterHTML(r){
     var female = r.gender === "female";
-    var studentWord = female ? "الطالبة" : "الطالب";
+    var studentWord = female ? "الطالبة" : (r.gender === "male" ? "الطالب" : "الطالب/ة");
     var head = officialHead();
     var sign =
       '<p class="respect">وتفضلوا بقبول وافر الاحترام</p>' +
@@ -3195,6 +3244,11 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
   function downloadDocx(list, filename){
     if(!window.JSZip) return Promise.reject(new Error("jszip-missing"));
     if(!list.length) return Promise.reject(new Error("empty-list"));
+    /* طلب بلا جنس محدد وبلا قالب محفوظ لا يمكن تصديره — يُرفض صراحةً
+       بدل الانهيار؛ يحدد الموظف جنسه من لوحة الإدارة ثم يعيد المحاولة */
+    for(var gi = 0; gi < list.length; gi++){
+      if(!templateForReq(list[gi])) return Promise.reject(new Error("template-unresolved"));
+    }
     toast("جارٍ تجهيز ملف الوورد من قوالب الكلية الرسمية…");
     var tpls = [];
     list.forEach(function(r){
@@ -3278,6 +3332,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
         }catch(e){}
       }
       showView("admin");
+      subscribeRequests();
       renderDashboard(true);
       fillSettingsForm();
       toast("مرحباً بك — تم تسجيل الدخول إلى نظام إدارة الطلبات");
@@ -3398,7 +3453,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
     ];
     var fDest = $("fDest");
     var dt = fDest ? fDest.getAttribute("data-token") : "";
-    if(dt) rows.push([humanizeToken(dt), d.dest || "—"]);
+    if(dt) rows.push([humanizeToken(dt), d.dest.trim() ? d.dest : "— مطلوب إدخاله"]);
     for(var k in d.extra){
       if(d.extra[k]) rows.push([humanizeToken(k), d.extra[k]]);
     }
@@ -3421,8 +3476,9 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
       err1.classList.remove("show");
     }
     if(from === 2){
-      /* الخطوة الثانية: الدراسة فقط — لا جنس ولا نوع كتاب بعد الآن */
-      var ok2 = !!document.querySelector('input[name="study"]:checked');
+      /* الخطوة الثانية: الدراسة والجنس — بلا جنس لا قالب صحيح ولا مراجعة */
+      var ok2 = !!document.querySelector('input[name="study"]:checked') &&
+                !!document.querySelector('input[name="gender"]:checked');
       if(!ok2){
         $("err2").classList.add("show");
         return;
@@ -3465,20 +3521,65 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
   }
   $("fDept").addEventListener("change", applyStudyRule);
 
+  /* حجز رقم الطلب التالي — مع إعادة محاولة عند تعارض الكتابة المتزامنة
+     (1200 طالب قد يرسلون معاً؛ عدّاد واحد مشترك يتعارض أحياناً فينبغي
+     إعادة المحاولة بدل إظهار خطأ للطالب) */
+  /* رمز تتبع عشوائي يُلحق برقم الطلب (WU-1404-X7K2Q9) حتى لا يمكن تخمين
+     أرقام الطلبات وتعدادها — الرقم وحده لم يعد يكفي لفتح أي طلب. */
+  function makeTrackToken(){
+    var chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+    var out = "";
+    try{
+      var buf = new Uint32Array(5);
+      (window.crypto || window.msCrypto).getRandomValues(buf);
+      for(var i = 0; i < 5; i++) out += chars.charAt(buf[i] % chars.length);
+      return out;
+    }catch(e){
+      for(var j = 0; j < 5; j++) out += chars.charAt(Math.floor(Math.random() * chars.length));
+      return out;
+    }
+  }
+  function nextRequestNumber(attempt){
+    var counterRef = db.collection("counters").doc("requests");
+    return db.runTransaction(function(tx){
+      return tx.get(counterRef).then(function(snap){
+        var last = 1006;
+        if(snap.exists){
+          var v = parseInt(snap.data().last, 10);
+          if(!isNaN(v) && v >= 1006) last = v;
+        }
+        var next = last + 1;
+        tx.set(counterRef, { last: next }, { merge: true });
+        return next;
+      });
+    }).catch(function(err){
+      if(attempt < 5 && isBusyError(err)){
+        return new Promise(function(res){ setTimeout(res, 400 * attempt); }).then(function(){ return nextRequestNumber(attempt + 1); });
+      }
+      throw err;
+    });
+  }
+
   $("reqForm").addEventListener("submit", function(ev){
     ev.preventDefault();
     var d = formData();
     if(isMorningOnly(d.dept)) d.study = "صباحية";
-    if(!d.name.trim() || !d.dept || !d.stage || !d.study || !d.templateId){
+    if(!d.name.trim() || !d.dept || !d.stage || !d.study || !d.gender || !d.templateId){
       toast("يرجى إكمال جميع الحقول المطلوبة قبل الإرسال");
       setStep((!d.name.trim() || !d.dept || !d.stage) ? 1 : 2, "back");
       return;
     }
-    /* الخطوة 3: حقل الجهة/المدرسة (إن وُجد في القالب) + أي حقول إضافية من القالب */
+    /* الخطوة 3: حقل الجهة/المدرسة (إن وُجد في القالب) + أي حقول إضافية من القالب —
+       اسم المدرسة مطلوب وغير فارغ (بعد إزالة الفراغات) قبل الإرسال، ويُفحص
+       من حقول القالب نفسه لا من خاصية DOM فقط حتى لا يفوت إن تأخر بناؤها */
     var fDest = $("fDest");
     var dt = fDest ? fDest.getAttribute("data-token") : "";
+    var tplNow = selectedTemplate();
+    var tplTokens = (tplNow && tplNow.tokens) || [];
+    var needsDest = dt !== "" || tplTokens.indexOf("اسم_المدرسة_كاملاً") !== -1 ||
+                    tplTokens.indexOf("الجهة_الموجه_لها_التأييد") !== -1;
     var dynBad = false;
-    if(dt && !d.dest.trim()) dynBad = true;
+    if(needsDest && !d.dest.trim()) dynBad = true;
     var dynInputs = document.querySelectorAll("#dynFields input[data-token]");
     for(var di = 0; di < dynInputs.length; di++){
       if(!dynInputs[di].value.trim()){ dynBad = true; break; }
@@ -3486,7 +3587,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
     if(dynBad){
       $("err3").classList.add("show");
       var badEl = null;
-      if(dt && !d.dest.trim()){ badEl = $("fDest"); }
+      if(needsDest && !d.dest.trim()){ badEl = $("fDest"); }
       else {
         for(var dj = 0; dj < dynInputs.length; dj++){
           if(!dynInputs[dj].value.trim()){ badEl = dynInputs[dj]; break; }
@@ -3501,20 +3602,15 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
     var btn = $("submitBtn");
     if(btn.disabled) return;
     btn.disabled = true;
-    var counterRef = db.collection("counters").doc("requests");
-    db.runTransaction(function(tx){
-      return tx.get(counterRef).then(function(snap){
-        var last = 1006;
-        if(snap.exists){
-          var v = parseInt(snap.data().last, 10);
-          if(!isNaN(v) && v >= 1006) last = v;
-        }
-        var next = last + 1;
-        tx.set(counterRef, { last: next }, { merge: true });
-        return next;
-      });
-    }).then(function(next){
-      var id = "WU-" + next;
+    /* مهلة 60 ثانية بين إرسالين من نفس المتصفح — تحدّ من إغراق الإدخالات
+       العشوائي دون أن تمنع أي طالب حقيقي (تُتجاوز عبر API مباشرة؛ الردع
+       الحقيقي هو App Check — انظر تقرير التدقيق). */
+    try{
+      var lastSubmit = parseInt(localStorage.getItem("warkaa_last_submit") || "0", 10);
+      if(Date.now() - lastSubmit < 60000){ btn.disabled = false; toast("أرسلت طلباً قبل قليل — انتظر دقيقة قبل إرسال طلب آخر"); return; }
+    }catch(e){}
+    nextRequestNumber(1).then(function(next){
+      var id = "WU-" + next + "-" + makeTrackToken();
       var payload = {
         name: d.name.trim(),
         department: d.dept,
@@ -3534,11 +3630,12 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
       return db.collection("requests").doc(id).set(payload).then(function(){ return id; });
     }).then(function(id){
       btn.disabled = false;
+      try{ localStorage.setItem("warkaa_last_submit", String(Date.now())); }catch(e){}
       lastMyId = id;
       showSuccess({ id: id, name: d.name.trim() });
     }).catch(function(err){
       btn.disabled = false;
-      toast("تعذّر إرسال الطلب — " + DB_ERR_MSG);
+      toast("تعذّر إرسال الطلب — " + dbErrorMessage(err));
     });
   });
 
@@ -3552,15 +3649,17 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
     $("successMsg").textContent = "شكراً " + req.name.split(" ")[0] + " — وصل طلبك إلى شعبة الشؤون والتسجيل. احتفظ برقم الطلب التالي للمتابعة:";
     /* count the number up */
     var target = parseInt(req.id.replace("WU-",""), 10) || 0;
+    var fullSuffix = req.id.replace("WU-", "");
     var el = $("successNum");
-    if(reduced){ el.textContent = target; return; }
+    if(reduced){ el.textContent = fullSuffix; return; }
     var startNum = Math.max(1000, target - 12), t0 = null, dur = 900;
     function frame(ts){
       if(!t0) t0 = ts;
       var p = Math.min((ts - t0) / dur, 1);
       var eased = 1 - Math.pow(1 - p, 3);
+      if(p >= 1){ el.textContent = fullSuffix; return; }
       el.textContent = Math.round(startNum + (target - startNum) * eased);
-      if(p < 1) requestAnimationFrame(frame);
+      requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
     zone.scrollIntoView({behavior: reduced ? "auto" : "smooth", block:"center"});
@@ -3687,10 +3786,10 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
       feedSeen[r.id] = true;
     });
   }
-  function renderFeedError(){
+  function renderFeedError(msg){
     var list = $("adminFeedList");
     if(!list) return;
-    list.innerHTML = '<li class="feed-item"><span class="fm" style="font-size:14px;font-weight:700;color:var(--danger)">' + DB_ERR_MSG + '</span></li>';
+    list.innerHTML = '<li class="feed-item"><span class="fm" style="font-size:14px;font-weight:700;color:var(--danger)">' + (msg || DB_ERR_MSG) + '</span></li>';
   }
 
   /* ---------- Admin dashboard ---------- */
@@ -3723,18 +3822,18 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
       body.innerHTML = rows.map(function(r, idx){
         var checked = selected[r.id] ? "checked" : "";
         return '<tr' + (idx === 0 ? "" : "") + '>' +
-          '<td class="check-cell"><input type="checkbox" data-act="check" data-id="' + r.id + '" ' + checked + ' aria-label="تحديد الطلب"></td>' +
+          '<td class="check-cell"><input type="checkbox" data-act="check" data-id="' + esc(r.id) + '" ' + checked + ' aria-label="تحديد الطلب"></td>' +
           '<td class="id-cell"><span class="id-badge">' + esc(r.id) + '</span></td>' +
           '<td class="name-cell">' + esc(r.name) + '<span class="sub-cell">إلى: ' + esc(r.dest) + '</span></td>' +
           '<td>' + (r.gender === "female" ? "طالبة" : (r.gender === "male" ? "طالب" : "—")) + '</td>' +
           '<td><span class="pill ' + (r.type === "doc" ? "doc" : "cert") + '">' + (r.type === "doc" ? "وثيقة" : "تأييد") + '</span></td>' +
           '<td>' + esc(r.dept) + '<span class="sub-cell">' + (r.stage ? 'المرحلة ' + esc(r.stage) + ' · ' : '') + esc(r.study) + '</span></td>' +
           '<td style="white-space:nowrap">' + fmtDate(r.date) + '</td>' +
-          '<td><button class="status-btn ' + (r.status === "printed" ? "status-done" : "status-new") + '" data-act="status" data-id="' + r.id + '" title="اضغط لتبديل الحالة">' + (r.status === "printed" ? "تمت الطباعة" : "جديد") + '</button></td>' +
+          '<td><button class="status-btn ' + (r.status === "printed" ? "status-done" : "status-new") + '" data-act="status" data-id="' + esc(r.id) + '" title="اضغط لتبديل الحالة">' + (r.status === "printed" ? "تمت الطباعة" : "جديد") + '</button></td>' +
           '<td><div class="row-actions">' +
-            '<button class="icon-btn" data-act="edit" data-id="' + r.id + '">تعديل</button>' +
-            '<button class="icon-btn" data-act="print" data-id="' + r.id + '">طباعة</button>' +
-            '<button class="icon-btn del" data-act="del" data-id="' + r.id + '">حذف</button>' +
+            '<button class="icon-btn" data-act="edit" data-id="' + esc(r.id) + '">تعديل</button>' +
+            '<button class="icon-btn" data-act="print" data-id="' + esc(r.id) + '">طباعة</button>' +
+            '<button class="icon-btn del" data-act="del" data-id="' + esc(r.id) + '">حذف</button>' +
           '</div></td></tr>';
       }).join("");
     }
@@ -3959,19 +4058,23 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
       if(note) note.classList.add("hidden");
     }
   }
+  /* اختيار زر راديو بقيمة من القائمة المسموحة فقط — قيمة غريبة قادمة من
+     قاعدة البيانات (طلب مُنشأ عبر API) كانت تكسر محدد CSS وتُعطّل النافذة. */
+  function checkRadio(name, val, allowed){
+    if(allowed.indexOf(val) === -1) return;
+    var el = document.querySelector('input[name="' + name + '"][value="' + val + '"]');
+    if(el) el.checked = true;
+  }
   function openEdit(r){
     editingId = r.id;
     $("editTitle").textContent = "تعديل الطلب " + r.id;
     $("eName").value = r.name;
     $("eDest").value = r.dest;
     $("eDept").value = r.dept;
-    var es = document.querySelector('input[name="estage"][value="' + r.stage + '"]');
-    if(es) es.checked = true;
-    var eg = (r.gender === "male" || r.gender === "female") ? document.querySelector('input[name="egender"][value="' + r.gender + '"]') : null;
-    if(eg) eg.checked = true;
-    var et = document.querySelector('input[name="etype"][value="' + r.type + '"]');
-    if(et) et.checked = true;
-    document.querySelector('input[name="estudy"][value="' + r.study + '"]').checked = true;
+    checkRadio("estage", r.stage, ["الأولى", "الثانية", "الثالثة", "الرابعة"]);
+    checkRadio("egender", r.gender, ["male", "female"]);
+    checkRadio("etype", r.type, ["doc", "cert"]);
+    checkRadio("estudy", r.study, ["صباحية", "مسائية"]);
     applyEditStudyRule();
     $("editModal").classList.add("show");
   }
@@ -4045,9 +4148,9 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
   setStep(1, "next");
   buildDynFields();
   refreshFormUI();
-  subscribeRequests();
+  /* لا مستمعات طلبات عند فتح الصفحة — تُفتح بعد دخول الموظف فقط (انظر تسجيل الدخول) */
   loadSiteSettings();
-  subscribeTemplates();
+  loadTemplates();
 })();
 </script>
 </body>
