@@ -3426,6 +3426,26 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
       });
     }).catch(function(){ return fallback(); });
   }
+  /* خط موحّد للكتاب كله — القوالب الرسمية تخلط Times وTraditional Arabic
+     وArial فتبدو القيم المعبأة مختلفة عن باقي النص. نوحّد كل rFonts على
+     خط واحد في المستند والأنماط والترويسات والتذييلات قبل التوليد، مع
+     بقاء الأحجام والعريض كما صممها القالب. */
+  var UNIFORM_FONT = "Times New Roman";
+  function normalizeFontsXml(xml){
+    var tag = '<w:rFonts w:ascii="' + UNIFORM_FONT + '" w:hAnsi="' + UNIFORM_FONT + '" w:cs="' + UNIFORM_FONT + '" w:hint="cs"/>';
+    return String(xml || "")
+      .replace(/<w:rFonts(?:\s[^>]*)?\/>/g, tag)
+      .replace(/<w:rFonts(?:\s[^>]*)?>[\s\S]*?<\/w:rFonts>/g, tag);
+  }
+  function normalizeZipFonts(zip){
+    var names = ["word/document.xml", "word/styles.xml"];
+    zip.file(/word\/(?:header|footer)[^/]*\.xml/).forEach(function(f){ names.push(f.name); });
+    return Promise.all(names.map(function(n){
+      var f = zip.file(n);
+      if(!f) return Promise.resolve();
+      return f.async("string").then(function(x){ zip.file(n, normalizeFontsXml(x)); });
+    })).then(function(){ return zip; });
+  }
   function downloadDocx(list, filename){
     if(!window.JSZip) return Promise.reject(new Error("jszip-missing"));
     if(!list.length) return Promise.reject(new Error("empty-list"));
@@ -3455,6 +3475,8 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
       var base = letters[0];
       return JSZip.loadAsync(base.tpl.buf).then(function(zip){
         return assembleDocx(zip, letters, list, base);
+      }).then(function(zip){
+        return normalizeZipFonts(zip);
       }).then(function(zip){
         return zip.generateAsync({
           type: "blob",
