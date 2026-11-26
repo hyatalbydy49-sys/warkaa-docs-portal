@@ -1261,6 +1261,26 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
               <option value="new">جديدة</option>
               <option value="printed">تمت طباعتها</option>
             </select>
+            <select id="filterDept" aria-label="فلتر القسم">
+              <option value="all">كل الأقسام</option>
+              <option value="طب الأسنان">طب الأسنان</option>
+              <option value="الصيدلة">الصيدلة</option>
+              <option value="تقنيات المختبرات الطبية">تقنيات المختبرات الطبية</option>
+              <option value="تقنيات التخدير">تقنيات التخدير</option>
+              <option value="هندسة النفط">هندسة النفط</option>
+              <option value="علوم التحليلات المرضية">علوم التحليلات المرضية</option>
+              <option value="تقنيات الهندسة الكهربائية">تقنيات الهندسة الكهربائية</option>
+              <option value="علوم الفيزياء الطبية">علوم الفيزياء الطبية</option>
+              <option value="اقتصاديات نفط وغاز">اقتصاديات نفط وغاز</option>
+              <option value="تربية كيمياء">تربية كيمياء</option>
+              <option value="تربية انجليزي">تربية انجليزي</option>
+              <option value="تقنيات التصميم الداخلي">تقنيات التصميم الداخلي</option>
+            </select>
+            <select id="filterStudy" aria-label="فلتر الدراسة">
+              <option value="all">الدراسة: الكل</option>
+              <option value="صباحية">صباحي</option>
+              <option value="مسائية">مسائي</option>
+            </select>
           </div>
 
           <div class="batch-panel" id="batchPanel">
@@ -1565,6 +1585,35 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
   var MORNING_ONLY = ["طب الأسنان","الصيدلة","تقنيات المختبرات الطبية"];
   var DEPT_FIX = {"التخدير":"تقنيات التخدير","المختبرات الطبية":"تقنيات المختبرات الطبية","علوم التحليلات":"علوم التحليلات المرضية","تصميم الداخلي":"تقنيات التصميم الداخلي"};
   function isMorningOnly(dept){ return MORNING_ONLY.indexOf(dept) !== -1; }
+  /* رقم الصادر (العدد): 1802 / حرف القسم / تسلسل — 1802 رقم صادر شعبة
+     التسجيل وشؤون الطلبة (من شعبة الشؤون)، والتسلسل يصعد لكل قسم وحده
+     من 1، ويُسند تلقائياً عند إصدار الكتاب ويُحفظ على الطلب نفسه حتى
+     لا يتغير عند إعادة الطباعة. */
+  var DEPT_LETTER = {"تقنيات التخدير":"ت","طب الأسنان":"ط","علوم التحليلات المرضية":"ع","الصيدلة":"ص","تقنيات المختبرات الطبية":"م","هندسة النفط":"ن","تقنيات الهندسة الكهربائية":"هـ","علوم الفيزياء الطبية":"ف","اقتصاديات نفط وغاز":"ق","تربية كيمياء":"ك","تربية انجليزي":"ا","تقنيات التصميم الداخلي":"د"};
+  function deptLetter(dept){
+    var d = DEPT_FIX[dept] || dept || "";
+    return DEPT_LETTER[d] || "";
+  }
+  /* إسناد أرقام الصادر لقائمة كتب تُصدر الآن: من عنده رقم محفوظ يبقى
+     رقمه وتاريخه، ومن لا رقم له يأخذ التسلسل التالي في قسمه. */
+  function assignOutgoing(list){
+    var counts = {};
+    requests.forEach(function(r){
+      if(r.outgoing){
+        var L = deptLetter(r.dept);
+        if(L) counts[L] = (counts[L] || 0) + 1;
+      }
+    });
+    list.forEach(function(r){
+      if(r.outgoing){ r._outNum = r.outgoing; r._outDate = r.outgoingDate || ""; r._outNew = false; return; }
+      var L = deptLetter(r.dept);
+      if(!L){ r._outNum = ""; r._outDate = ""; r._outNew = false; return; }
+      counts[L] = (counts[L] || 0) + 1;
+      r._outNum = "1802/" + L + "/" + counts[L];
+      r._outDate = todayStr(0);
+      r._outNew = true;
+    });
+  }
   function fixDeptName(r){
     if(r && DEPT_FIX[r.dept]) r.dept = DEPT_FIX[r.dept];
     if(r && isMorningOnly(r.dept) && r.study === "مسائية") r.study = "صباحية";
@@ -1645,7 +1694,9 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
       study: d.study || "",
       stage: d.stage || "",
       date: d.date || "",
-      status: d.status || "new"
+      status: d.status || "new",
+      outgoing: d.outgoing || "",
+      outgoingDate: d.outgoingDate || ""
     };
     fixDeptName(r);
     r.department = r.dept;
@@ -2631,7 +2682,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
       '<div class="role">' + SIGNER_ROLE + '</div>' +
       '<div class="date">/&nbsp;&nbsp;&nbsp;&nbsp;/ 2026</div></div>';
     var studentWord = r.gender === "female" ? "الطالبة" : (r.gender === "male" ? "الطالب" : "الطالب/ة");
-    return officialHead() + body + sign + copiesBlock(studentWord) + officialFoot();
+    return officialHead(r.outgoing || "", outgoingDateText(r.outgoingDate)) + body + sign + copiesBlock(studentWord) + officialFoot();
   }
 
   /* مفتاح التمييز (flash) في المعاينة: للقوالب الرسمية أسماء الحقول القديمة، وللمرفوعة أسماء الحقول نفسها */
@@ -2995,7 +3046,14 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
      right (Arabic): ministry calligraphy logo + college name + registration dept.
      centre: college shield. left (English): ministry name + AL-Warka College.
      Then the number/date line and the divider. */
-  function officialHead(){
+  function outgoingDateText(iso){
+    var p = String(iso || "").split("-");
+    if(p.length !== 3) return "";
+    return parseInt(p[2], 10) + " / " + parseInt(p[1], 10) + " / " + p[0];
+  }
+  function officialHead(numText, dateText){
+    var num = numText ? esc(numText) : "ش ط /";
+    var dt = dateText ? esc(dateText) : "&nbsp;/&nbsp; / 2026";
     return '<img class="wm" src="' + WARKA_LOGO + '" alt="">' +
       '<div class="doc-inner">' +
       '<div class="doc-head">' +
@@ -3009,7 +3067,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
           '<div class="en2">AL-Warka College</div>' +
         '</div>' +
       '</div>' +
-      '<div class="numline">العدد: ش ط /<br>التاريخ: &nbsp;/&nbsp; / 2026</div>';
+      '<div class="numline">العدد: ' + num + '<br>التاريخ: ' + dt + '</div>';
   }
   /* Official college footer (verbatim from the college template footer1) */
   function officialFoot(){
@@ -3020,7 +3078,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
   function letterHTML(r){
     var female = r.gender === "female";
     var studentWord = female ? "الطالبة" : (r.gender === "male" ? "الطالب" : "الطالب/ة");
-    var head = officialHead();
+    var head = officialHead(r.outgoing || "", outgoingDateText(r.outgoingDate));
     var sign =
       '<p class="respect">وتفضلوا بقبول وافر الاحترام</p>' +
       '<div class="sign"><div class="name">' + SIGNER + '</div>' +
@@ -3241,6 +3299,133 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
     return { pre: xml.slice(0, openEnd + 1), content: inner, sectPr: sectPr, post: xml.slice(closeIdx) };
   }
   var DOCX_PAGE_BREAK = '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
+  /* تعبئة سطر «العدد/التاريخ» في ترويسة القالب: «ش ط» تصير رقم الصادر
+     الكامل وخانات التاريخ تُملأ بتاريخ الصدور. إن غابت «ش ط» يرجع
+     النص كما هو (قالب مرفوع بلا سطر عدد). */
+  function fillNumlineXml(xml, numText, dateIso){
+    var out = String(xml || "");
+    if(!numText || out.indexOf("ش ط") === -1) return out;
+    var num = xmlEsc(numText);
+    out = out.replace(/<w:t([^>]*)>ش ط\s*<\/w:t>/, function(m, attrs){
+      return "<w:t" + attrs + ">" + num + "</w:t>";
+    });
+    var ni = out.indexOf(num);
+    if(ni !== -1){
+      var tail = out.slice(ni);
+      tail = tail.replace(/<w:t([^>]*)>\s*\/\s*<\/w:t>/, "<w:t$1></w:t>");
+      out = out.slice(0, ni) + tail;
+    }
+    var p = String(dateIso || "").split("-");
+    if(p.length === 3){
+      var day = String(parseInt(p[2], 10)), mon = String(parseInt(p[1], 10)), yr = p[0];
+      var di = out.indexOf("التاريخ");
+      if(di !== -1){
+        var head = out.slice(0, di), dt = out.slice(di);
+        dt = dt.replace(/<w:t([^>]*)>\s+<\/w:t>/, "<w:t$1>" + day + "</w:t>");
+        var si = dt.indexOf("/ ");
+        if(si !== -1){
+          var t2 = dt.slice(si);
+          t2 = t2.replace(/<w:t([^>]*)>\s+<\/w:t>/, "<w:t$1>" + mon + "</w:t>");
+          dt = dt.slice(0, si) + t2;
+        }
+        dt = dt.replace(/<w:t([^>]*)>2026<\/w:t>/, "<w:t$1>" + yr + "</w:t>");
+        out = head + dt;
+      }
+    }
+    return out;
+  }
+  function sectPrForLetter(baseSectPr, ridMap, isLast){
+    var s = String(baseSectPr || "");
+    for(var oldRid in ridMap){
+      s = s.split('r:id="' + oldRid + '"').join('r:id="' + ridMap[oldRid] + '"');
+    }
+    if(!isLast && s.indexOf("<w:type w:val=") === -1){
+      s = s.replace(/<w:pgSz/, '<w:type w:val="nextPage"/><w:pgSz');
+    }
+    return s;
+  }
+  function injectSectPr(content, sectPr){
+    var trimmed = String(content || "").replace(/\s+$/, "");
+    var emptyPara = "<w:p><w:pPr>" + sectPr + "</w:pPr></w:p>";
+    if(trimmed.slice(-6) !== "</w:p>") return content + emptyPara;
+    var closeIdx = trimmed.length - 6;
+    var a = trimmed.lastIndexOf("<w:p>", closeIdx);
+    var b = trimmed.lastIndexOf("<w:p ", closeIdx);
+    var openIdx = Math.max(a, b);
+    if(openIdx === -1) return content + emptyPara;
+    var para = trimmed.slice(openIdx, closeIdx);
+    if(para.indexOf("<w:sectPr") !== -1) return content + emptyPara;
+    var pPrClose = para.indexOf("</w:pPr>");
+    if(pPrClose !== -1){
+      return trimmed.slice(0, openIdx) + para.slice(0, pPrClose) + sectPr + para.slice(pPrClose) + "</w:p>";
+    }
+    var openEnd = para.indexOf(">");
+    return trimmed.slice(0, openIdx) + para.slice(0, openEnd + 1) + "<w:pPr>" + sectPr + "</w:pPr>" + para.slice(openEnd + 1) + "</w:p>";
+  }
+  /* تجميع ملف الوورد: كل كتاب بقسمه الخاص وترويسته الخاصة حتى يظهر
+     رقم الصادر الخاص به أعلى صفحته. إن تعذّر (قالب بلا سطر عدد أو بلا
+     sectPr) يرجع للتجميع القديم بفواصل صفحات. */
+  function assembleDocx(zip, letters, list, base){
+    function fallback(){
+      var joined = letters.map(function(l){ return l.parts.content; }).join(DOCX_PAGE_BREAK);
+      zip.file("word/document.xml", base.parts.pre + joined + base.parts.sectPr + base.parts.post);
+      return zip;
+    }
+    if(!base.parts.sectPr) return Promise.resolve(fallback());
+    var headerObjs = zip.file(/word\/header\d+\.xml/);
+    if(!headerObjs || !headerObjs.length) return Promise.resolve(fallback());
+    var relsFile = zip.file("word/_rels/document.xml.rels");
+    var ctFile = zip.file("[Content_Types].xml");
+    if(!relsFile || !ctFile) return Promise.resolve(fallback());
+    return Promise.all(headerObjs.map(function(h){ return h.async("string"); })).then(function(texts){
+      return Promise.all([relsFile.async("string"), ctFile.async("string")]).then(function(rc){
+        var relsXml = rc[0], ctXml = rc[1];
+        if(ctXml.indexOf("</Types>") === -1 || relsXml.indexOf("</Relationships>") === -1) return fallback();
+        var numParts = [];
+        headerObjs.forEach(function(h, idx){
+          if(texts[idx].indexOf("ش ط") !== -1){
+            var target = h.name.replace(/^word\//, "");
+            var m = new RegExp('<Relationship[^>]*Target="' + target.replace(/\./g, "\\.") + '"[^>]*>').exec(relsXml);
+            var rid = null;
+            if(m){ var rm = /Id="([^"]+)"/.exec(m[0]); if(rm) rid = rm[1]; }
+            if(rid) numParts.push({ name: h.name, xml: texts[idx], rid: rid });
+          }
+        });
+        if(!numParts.length) return fallback();
+        /* علاقات الترويسة الأصلية (صور الشعار والعلامة المائية) يجب أن
+           تُستنسخ مع كل ترويسة جديدة وإلا اختفت الصور من الكتب */
+        return Promise.all(numParts.map(function(np){
+          var rf = zip.file("word/_rels/" + np.name.replace(/^word\//, "") + ".rels");
+          return rf ? rf.async("string") : Promise.resolve(null);
+        })).then(function(relsTexts){
+          numParts.forEach(function(np, j){ np.relsXml = relsTexts[j]; });
+          var newFiles = [], ctAdd = "", relAdd = "";
+          var doc = base.parts.pre;
+          letters.forEach(function(l, i){
+            var ridMap = {};
+            numParts.forEach(function(np, j){
+              var newName = "word/headerOut" + i + "x" + j + ".xml";
+              var newRid = "rIdOut" + i + "x" + j;
+              newFiles.push({ name: newName, xml: fillNumlineXml(np.xml, list[i]._outNum, list[i]._outDate) });
+              if(np.relsXml) newFiles.push({ name: "word/_rels/headerOut" + i + "x" + j + ".xml.rels", xml: np.relsXml });
+              ctAdd += '<Override PartName="/' + newName + '" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>';
+              relAdd += '<Relationship Id="' + newRid + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="' + newName.replace(/^word\//, "") + '"/>';
+              ridMap[np.rid] = newRid;
+            });
+            var isLast = i === letters.length - 1;
+            var sp = sectPrForLetter(base.parts.sectPr, ridMap, isLast);
+            doc += isLast ? (l.parts.content + sp) : injectSectPr(l.parts.content, sp);
+          });
+          doc += base.parts.post;
+          newFiles.forEach(function(f){ zip.file(f.name, f.xml); });
+          zip.file("word/document.xml", doc);
+          zip.file("[Content_Types].xml", ctXml.replace("</Types>", ctAdd + "</Types>"));
+          zip.file("word/_rels/document.xml.rels", relsXml.replace("</Relationships>", relAdd + "</Relationships>"));
+          return zip;
+        });
+      });
+    }).catch(function(){ return fallback(); });
+  }
   function downloadDocx(list, filename){
     if(!window.JSZip) return Promise.reject(new Error("jszip-missing"));
     if(!list.length) return Promise.reject(new Error("empty-list"));
@@ -3249,6 +3434,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
     for(var gi = 0; gi < list.length; gi++){
       if(!templateForReq(list[gi])) return Promise.reject(new Error("template-unresolved"));
     }
+    assignOutgoing(list);
     toast("جارٍ تجهيز ملف الوورد من قوالب الكلية الرسمية…");
     var tpls = [];
     list.forEach(function(r){
@@ -3268,8 +3454,8 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
     }).then(function(letters){
       var base = letters[0];
       return JSZip.loadAsync(base.tpl.buf).then(function(zip){
-        var joined = letters.map(function(l){ return l.parts.content; }).join(DOCX_PAGE_BREAK);
-        zip.file("word/document.xml", base.parts.pre + joined + base.parts.sectPr + base.parts.post);
+        return assembleDocx(zip, letters, list, base);
+      }).then(function(zip){
         return zip.generateAsync({
           type: "blob",
           mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -3797,10 +3983,15 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
     var q = $("searchInput").value.trim();
     var ft = $("filterType").value;
     var fs = $("filterStatus").value;
+    var fdEl = $("filterDept"), fd = fdEl ? fdEl.value : "all";
+    var fstEl = $("filterStudy"), fst = fstEl ? fstEl.value : "all";
+    var qUp = q.toUpperCase();
     return requests.filter(function(r){
-      if(q && r.name.indexOf(q) === -1) return false;
+      if(q && r.name.indexOf(q) === -1 && String(r.id).toUpperCase().indexOf(qUp) === -1) return false;
       if(ft !== "all" && r.type !== ft) return false;
       if(fs !== "all" && r.status !== fs) return false;
+      if(fd !== "all" && r.dept !== fd) return false;
+      if(fst !== "all" && r.study !== fst) return false;
       return true;
     });
   }
@@ -3884,6 +4075,8 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
   $("searchInput").addEventListener("input", function(){ renderDashboard(false); });
   $("filterType").addEventListener("change", function(){ renderDashboard(false); });
   $("filterStatus").addEventListener("change", function(){ renderDashboard(false); });
+  $("filterDept").addEventListener("change", function(){ renderDashboard(false); });
+  $("filterStudy").addEventListener("change", function(){ renderDashboard(false); });
   $("batchSize").addEventListener("change", updateSelectionUI);
   $("checkAll").addEventListener("change", function(){
     var on = this.checked;
@@ -3913,8 +4106,14 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
     } else if(act === "print"){
       downloadDocx([req], "كتاب-" + req.id + ".docx").then(function(){
         toast("تم تنزيل كتاب الطلب " + id + " — افتحه بالوورد واطبعه");
-        if(req.status !== "printed"){
-          if(db) db.collection("requests").doc(id).update({ status: "printed" }).catch(function(){ toast(DB_ERR_MSG); });
+        if(req.status !== "printed" || (req._outNew && req._outNum)){
+          if(db){
+            var upd = { status: "printed" };
+            if(req._outNew && req._outNum){ upd.outgoing = req._outNum; upd.outgoingDate = req._outDate; }
+            db.collection("requests").doc(id).update(upd).then(function(){
+              if(req._outNew){ req.outgoing = req._outNum; req.outgoingDate = req._outDate; req._outNew = false; }
+            }).catch(function(){ toast(DB_ERR_MSG); });
+          }
           else toast(DB_ERR_MSG);
         }
       }).catch(docxError);
@@ -3929,7 +4128,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
     updateSelectionUI();
   });
   /* ---------- Batch by request number (quick + custom range) ---------- */
-  function reqNum(r){ var n = parseInt(String(r && r.id ? r.id : "").replace(/\D/g, ""), 10); return isNaN(n) ? 0 : n; }
+  function reqNum(r){ var m = String(r && r.id ? r.id : "").match(/(\d+)/); var n = m ? parseInt(m[1], 10) : 0; return isNaN(n) ? 0 : n; }
   function sortedByNum(list){ return list.slice().sort(function(a,b){ return reqNum(a) - reqNum(b); }); }
   function batchStudyVal(){ var el = $("batchStudyFilter"); return el ? el.value : "all"; }
   function applyBatchStudy(list){
@@ -3941,8 +4140,16 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
     if(!list.length) return;
     if(!db){ toast(DB_ERR_MSG); return; }
     var batch = db.batch();
-    list.forEach(function(r){ batch.update(db.collection("requests").doc(r.id), { status: "printed" }); });
-    batch.commit().catch(function(){ toast(DB_ERR_MSG); });
+    list.forEach(function(r){
+      var upd = { status: "printed" };
+      if(r._outNew && r._outNum){ upd.outgoing = r._outNum; upd.outgoingDate = r._outDate; }
+      batch.update(db.collection("requests").doc(r.id), upd);
+    });
+    batch.commit().then(function(){
+      list.forEach(function(r){
+        if(r._outNew){ r.outgoing = r._outNum; r.outgoingDate = r._outDate; r._outNew = false; }
+      });
+    }).catch(function(){ toast(DB_ERR_MSG); });
   }
   function markPrintedAndDownload(list, filename, okMsg){
     downloadDocx(list, filename).then(function(){
@@ -3962,7 +4169,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
   function parseRangeNum(v){
     var t = String(v == null ? "" : v).trim().toUpperCase().replace(/\s+/g, "");
     if(!t) return null;
-    var m = t.match(/^(?:WU-?)?(\d+)$/);
+    var m = t.match(/^(?:WU-?)?(\d+)(?:-[A-Z0-9]+)?$/);
     if(!m) return NaN;
     return parseInt(m[1], 10);
   }
@@ -3970,7 +4177,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
     var from = parseRangeNum($("rangeFrom").value);
     var to = parseRangeNum($("rangeTo").value);
     if(from === null || to === null) return { error: "أدخل رقمي البداية والنهاية أولاً — مثال: من 1007 إلى 1011." };
-    if(isNaN(from) || isNaN(to)) return { error: "صيغة الرقم غير صحيحة — اكتب WU-1007 أو الرقم فقط 1007." };
+    if(isNaN(from) || isNaN(to)) return { error: "صيغة الرقم غير صحيحة — اكتب الرقم كما يظهر بالجدول (مثل WU-1463-7W4DX) أو WU-1007 أو الرقم فقط 1007." };
     if(from > to) return { error: "رقم البداية (" + from + ") أكبر من رقم النهاية (" + to + ") — البداية يجب أن تكون أصغر من النهاية أو تساويها." };
     var hasFrom = requests.some(function(r){ return reqNum(r) === from; });
     var hasTo = requests.some(function(r){ return reqNum(r) === to; });
@@ -3989,7 +4196,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
     $("rangeFrom").classList.remove("err"); $("rangeTo").classList.remove("err");
     if(!fv && !tv){
       info.className = "range-info";
-      info.textContent = "أدخل رقمي البداية والنهاية كما يظهران في عمود «رقم الطلب» بالجدول أسفله — يقبل الصيغتين: WU-1007 أو 1007 فقط.";
+      info.textContent = "أدخل رقمي البداية والنهاية كما يظهران في عمود «رقم الطلب» بالجدول أسفله — يقبل الرقم الكامل كما هو (مثل WU-1463-7W4DX) أو WU-1007 أو 1007 فقط.";
       btn.disabled = true; return;
     }
     if(!fv || !tv){
