@@ -3341,9 +3341,15 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
   }
   /* تعبئة أي قالب: تحويلات الجنس العامة أولاً، ثم قيم حقول القالب نفسه
      (من الاستمارة الحية أو من الطلب المحفوظ) — لا فرع حسب «نوع» ثابت بعد الآن. */
+  var genderXmlCache = {};
   function fillTemplateXml(xml, r, tpl){
     var t = tpl || templateForReq(r);
-    var out = applyGenderWording(xml, (r && r.gender) || "");
+    var gender = (r && r.gender) || "";
+    /* تحويلات الجنس تعتمد على القالب والجنس فقط — تُحسب مرة واحدة لكل
+       قالب وجنس وتُعاد لكل الكتب بدل إعادة مسح النص كاملاً لكل كتاب */
+    var cacheKey = (t && t.id ? t.id : "") + "|" + gender;
+    var out = genderXmlCache[cacheKey];
+    if(out == null){ out = applyGenderWording(xml, gender); genderXmlCache[cacheKey] = out; }
     var raw = requestTokenValues(r, t);
     var values = {};
     for(var k in raw) values[k] = xmlEsc(raw[k]);
@@ -3466,7 +3472,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
             var m = new RegExp('<Relationship[^>]*Target="' + target.replace(/\./g, "\\.") + '"[^>]*>').exec(relsXml);
             var rid = null;
             if(m){ var rm = /Id="([^"]+)"/.exec(m[0]); if(rm) rid = rm[1]; }
-            if(rid) numParts.push({ name: h.name, xml: texts[idx], rid: rid });
+            if(rid) numParts.push({ name: h.name, xml: normalizeFontsXml(texts[idx]), rid: rid });
           }
         });
         if(!numParts.length) return fallback();
@@ -3517,7 +3523,10 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
   }
   function normalizeZipFonts(zip){
     var names = ["word/document.xml", "word/styles.xml"];
-    zip.file(/word\/(?:header|footer)[^/]*\.xml/).forEach(function(f){ names.push(f.name); });
+    /* الترويسات المستنسخة لكل كتاب (headerOut) مبنية أصلاً من ترويسات
+       موحّدة الخط في assembleDocx فلا تُعاد معالجتها — هذا يوفر مسح
+       مئات الملفات في الدفعات الكبيرة */
+    zip.file(/word\/(?:header\d+|footer[^/]*)\.xml/).forEach(function(f){ names.push(f.name); });
     return Promise.all(names.map(function(n){
       var f = zip.file(n);
       if(!f) return Promise.resolve();
@@ -3558,7 +3567,11 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
       }).then(function(zip){
         return zip.generateAsync({
           type: "blob",
-          mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          compression: "DEFLATE",
+          compressionOptions: { level: 1 }
+        }, function(meta){
+          toast("جارٍ تجهيز ملف الوورد من قوالب الكلية الرسمية… " + Math.round(meta.percent) + "%");
         });
       });
     }).then(function(blob){
