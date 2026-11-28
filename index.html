@@ -1598,25 +1598,86 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
     var d = DEPT_FIX[dept] || dept || "";
     return DEPT_LETTER[d] || "";
   }
-  /* إسناد أرقام الصادر لقائمة كتب تُصدر الآن: من عنده رقم محفوظ يبقى
-     رقمه وتاريخه، ومن لا رقم له يأخذ التسلسل التالي في قسمه. */
-  function assignOutgoing(list){
-    var counts = {};
+  /* استخراج التسلسل من أي صيغة رقم صادر قديمة أو جديدة */
+  function parseOutSeq(out){
+    if(!out) return 0;
+    var parts = String(out).split("/");
+    var n = parseInt(parts[parts.length - 1], 10);
+    return isNaN(n) ? 0 : n;
+  }
+  function newOutFormat(L, seq){ return "ش ط/" + L + "/1802/" + seq; }
+  function maxOutSeq(){
+    var max = {};
     requests.forEach(function(r){
-      if(r.outgoing){
-        var L = deptLetter(r.dept);
-        if(L) counts[L] = (counts[L] || 0) + 1;
-      }
+      if(!r.outgoing) return;
+      var L = deptLetter(r.dept); if(!L) return;
+      var s = parseOutSeq(r.outgoing);
+      if(s > (max[L] || 0)) max[L] = s;
     });
+    return max;
+  }
+  /* إسناد أرقام الصادر لقائمة كتب تُصدر الآن: من عنده رقم محفوظ يبقى
+     تسلسله وتاريخه وتُحوَّل صيغته للصيغة الجديدة، ومن لا رقم له يأخذ
+     التسلسل التالي في قسمه بترتيب رقم الطلب من الأصغر للأكبر. */
+  function assignOutgoing(list){
+    var max = maxOutSeq();
+    var fresh = [];
     list.forEach(function(r){
-      if(r.outgoing){ r._outNum = r.outgoing; r._outDate = r.outgoingDate || ""; r._outNew = false; return; }
       var L = deptLetter(r.dept);
+      if(r.outgoing){
+        var s = parseOutSeq(r.outgoing);
+        if(L && s){ r._outNum = newOutFormat(L, s); r._outNew = (r._outNum !== r.outgoing); }
+        else { r._outNum = r.outgoing; r._outNew = false; }
+        r._outDate = r.outgoingDate || todayStr(0);
+        return;
+      }
       if(!L){ r._outNum = ""; r._outDate = ""; r._outNew = false; return; }
-      counts[L] = (counts[L] || 0) + 1;
-      r._outNum = "ش ط/" + L + "/1802/" + counts[L];
+      fresh.push(r);
+    });
+    fresh.sort(function(a,b){ return reqNum(a) - reqNum(b); });
+    fresh.forEach(function(r){
+      var L = deptLetter(r.dept);
+      max[L] = (max[L] || 0) + 1;
+      r._outNum = newOutFormat(L, max[L]);
       r._outDate = todayStr(0);
       r._outNew = true;
     });
+  }
+  /* ترحيل الكتب القديمة الصادرة: تحويل الصيغة القديمة للجديدة بنفس
+     التسلسل، وإسناد أرقام لمن لا رقم له بترتيب رقم الطلب داخل كل قسم.
+     يعمل مرة واحدة عند فتح لوحة الموظفين ولا يكتب إلا ما تغيّر. */
+  var outgoingMigrated = false;
+  function migrateOldOutgoing(){
+    if(outgoingMigrated || !db) return;
+    outgoingMigrated = true;
+    var max = maxOutSeq();
+    var updates = [];
+    var unnumbered = [];
+    requests.forEach(function(r){
+      if(r.status !== "printed") return;
+      var L = deptLetter(r.dept); if(!L) return;
+      if(r.outgoing){
+        var s = parseOutSeq(r.outgoing);
+        if(s){
+          var nf = newOutFormat(L, s);
+          if(nf !== r.outgoing) updates.push({ id: r.id, outgoing: nf, outgoingDate: r.outgoingDate || r.date || todayStr(0) });
+        }
+      } else unnumbered.push(r);
+    });
+    unnumbered.sort(function(a,b){ return reqNum(a) - reqNum(b); });
+    unnumbered.forEach(function(r){
+      var L = deptLetter(r.dept);
+      max[L] = (max[L] || 0) + 1;
+      updates.push({ id: r.id, outgoing: newOutFormat(L, max[L]), outgoingDate: r.date || todayStr(0) });
+    });
+    if(!updates.length) return;
+    for(var i = 0; i < updates.length; i += 450){
+      (function(chunk){
+        var batch = db.batch();
+        chunk.forEach(function(u){ batch.update(db.collection("requests").doc(u.id), { outgoing: u.outgoing, outgoingDate: u.outgoingDate }); });
+        batch.commit().catch(function(){});
+      })(updates.slice(i, i + 450));
+    }
   }
   function fixDeptName(r){
     if(r && DEPT_FIX[r.dept]) r.dept = DEPT_FIX[r.dept];
@@ -1741,6 +1802,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
        ثم التغييرات فقط، لا عند كل زائر. */
     db.collection("requests").orderBy("createdAt", "desc").onSnapshot(function(snap){
       requests = snap.docs.map(docToReq);
+      migrateOldOutgoing();
       dbErrorShown = false;
       if(!$("viewAdmin").classList.contains("hidden")) renderDashboard(false);
     }, function(err){ handleDbError(err); });
