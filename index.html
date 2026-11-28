@@ -923,8 +923,9 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
                   <div class="form-grid">
                     <div class="field full" id="destFieldWrap">
                       <label for="fDest" id="destLabel">اسم المدرسة كاملاً <span class="req">*</span></label>
-                      <input type="text" id="fDest" placeholder="أدخل إجابتك" maxlength="200" />
-                      <p class="field-note" id="destNote">اتركه فارغاً إذا كان طلبك تأييد</p>
+                      <input type="text" id="fDest" placeholder="أدخل إجابتك" maxlength="200" list="schoolsList" autocomplete="off" />
+                      <datalist id="schoolsList"></datalist>
+                      <p class="field-note" id="destNote">ابدأ بكتابة الاسم واختر من الاقتراحات إن ظهرت حتى لا تخطئ إملائياً — اتركه فارغاً إذا كان طلبك تأييد</p>
                     </div>
                     <div id="dynFields" class="dyn-fields"></div>
                   </div>
@@ -1471,6 +1472,12 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
             <input type="text" id="setWebsite" class="ltr" dir="ltr" />
           </div>
           <div class="field full">
+            <label for="setSchools">أسماء المدارس الصحيحة</label>
+            <textarea id="setSchools" rows="6"></textarea>
+            <p class="field-note">اسم مدرسة واحد في كل سطر — تظهر للطالب كاقتراحات عند كتابة اسم المدرسة في الاستمارة حتى لا يخطئ إملائياً. اضغط الزر لتجميع الأسماء من الطلبات السابقة ثم صحّحها هنا واحفظ.</p>
+            <button type="button" class="btn btn-ghost" onclick="collectSchools()">اجمع أسماء المدارس من الطلبات السابقة</button>
+          </div>
+          <div class="field full">
             <label>صورة مبنى الكلية (قسم «عن الكلية»)</label>
             <div class="settings-photo">
               <img id="setPhotoPreview" alt="معاينة صورة مبنى الكلية الحالية" />
@@ -1519,7 +1526,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
       </div>
       <div class="field full">
         <label for="eDest">اسم المدرسة / الجهة الموجه لها التأييد</label>
-        <input type="text" id="eDest" maxlength="200" />
+        <input type="text" id="eDest" maxlength="200" list="schoolsList" autocomplete="off" />
       </div>
       <div class="field">
         <label for="eDept">القسم</label>
@@ -1910,8 +1917,40 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
   }
 
   /* تطبيق الإعدادات على كل مواضع ظهورها في الصفحة العامة ولوحة الإدارة */
+  /* اقتراحات أسماء المدارس: قائمة محفوظة بالإعدادات تظهر للطالب عند
+     الكتابة في حقل اسم المدرسة حتى لا يخطئ إملائياً — النص الحر يبقى
+     مسموحاً إن لم تكن مدرسته في القائمة */
+  function fillSchoolsDatalist(list){
+    var dl = $("schoolsList");
+    if(!dl) return;
+    dl.innerHTML = "";
+    (list || []).forEach(function(name){
+      var v = String(name || "").trim();
+      if(!v) return;
+      var o = document.createElement("option");
+      o.value = v;
+      dl.appendChild(o);
+    });
+  }
+  window.collectSchools = function(){
+    var ta = $("setSchools");
+    if(!ta) return;
+    var seen = {}, out = [];
+    var add = function(v){
+      v = String(v || "").trim();
+      if(v && !seen[v]){ seen[v] = true; out.push(v); }
+    };
+    ta.value.split("\n").forEach(add);
+    (requests || []).forEach(function(r){ add(r && r.dest); });
+    out.sort();
+    ta.value = out.join("\n");
+    settingsFormDirty = true;
+    settingsAlertShow("");
+    toast(out.length ? "تم جمع " + out.length + " اسم مدرسة — راجعها وصحّح الأخطاء ثم احفظ الإعدادات" : "لا توجد أسماء مدارس في الطلبات بعد");
+  };
   function applySiteSettings(s){
     if(!s) return;
+    fillSchoolsDatalist(s.schools || []);
     if(s.collegeName){
       ["hdrCollegeName", "applyCollegeName", "aboutIntroName", "footCollegeName", "footCopyName", "sideCollegeName"].forEach(function(id){
         var el = $(id); if(el) el.textContent = s.collegeName;
@@ -1970,6 +2009,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
     set("setAboutText", s.aboutText);
     set("setAddress", s.address);
     set("setPhones", (s.phones || []).join("\n"));
+    set("setSchools", (s.schools || []).join("\n"));
     set("setOfficeHours", s.officeHours);
     set("setRegHours", s.regHours);
     set("setInstagram", s.instagramUrl);
@@ -2056,6 +2096,14 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
       aboutText: val("setAboutText"),
       address: val("setAddress"),
       phones: normPhones(val("setPhones")),
+      schools: (function(){
+        var seen = {}, out = [];
+        val("setSchools").split("\n").forEach(function(v){
+          v = v.trim();
+          if(v && !seen[v]){ seen[v] = true; out.push(v); }
+        });
+        return out;
+      })(),
       officeHours: val("setOfficeHours"),
       regHours: val("setRegHours"),
       instagramUrl: val("setInstagram"),
@@ -2136,7 +2184,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
     });
   };
 
-  ["setCollegeName", "setAboutText", "setAddress", "setPhones", "setOfficeHours", "setRegHours", "setInstagram", "setWebsite"].forEach(function(id){
+  ["setCollegeName", "setAboutText", "setAddress", "setPhones", "setSchools", "setOfficeHours", "setRegHours", "setInstagram", "setWebsite"].forEach(function(id){
     var el = $(id);
     if(el) el.addEventListener("input", function(){ settingsFormDirty = true; settingsAlertShow(""); });
   });
