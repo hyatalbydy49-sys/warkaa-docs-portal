@@ -1605,14 +1605,29 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
     var n = parseInt(parts[parts.length - 1], 10);
     return isNaN(n) ? 0 : n;
   }
+  /* استخراج حرف القسم من الرقم المحفوظ نفسه — الرقم المحفوظ هو المرجع،
+     لا قسم الطلب الحالي، حتى لا ينتقل الرقم لقسم ثانٍ إذا تغيّر قسم
+     الطلب بعد إصداره ولا تختلط تسلسلات الأقسام ببعضها */
+  var OUT_LETTERS = ["ت","ط","ع","ص","م","ن","هـ","ف","ق","ك","ا","د"];
+  function parseOutLetter(out){
+    if(!out) return "";
+    var parts = String(out).split("/");
+    for(var i = 0; i < parts.length; i++){
+      var p = parts[i].trim();
+      if(OUT_LETTERS.indexOf(p) !== -1) return p;
+    }
+    return "";
+  }
   function newOutFormat(L, seq){ return "ش ط/" + L + "/1802/" + seq; }
   function maxOutSeq(){
     var max = {};
     requests.forEach(function(r){
-      if(!r.outgoing) return;
-      var L = deptLetter(r.dept); if(!L) return;
-      var s = parseOutSeq(r.outgoing);
-      if(s > (max[L] || 0)) max[L] = s;
+      [r.outgoing, r._outNum].forEach(function(out){
+        if(!out) return;
+        var L = parseOutLetter(out) || deptLetter(r.dept); if(!L) return;
+        var s = parseOutSeq(out);
+        if(s > (max[L] || 0)) max[L] = s;
+      });
     });
     return max;
   }
@@ -1626,7 +1641,8 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
       var L = deptLetter(r.dept);
       if(r.outgoing){
         var s = parseOutSeq(r.outgoing);
-        if(L && s){ r._outNum = newOutFormat(L, s); r._outNew = (r._outNum !== r.outgoing); }
+        var sL = parseOutLetter(r.outgoing) || L;
+        if(sL && s){ r._outNum = newOutFormat(sL, s); r._outNew = (r._outNum !== r.outgoing); }
         else { r._outNum = r.outgoing; r._outNew = false; }
         r._outDate = r.outgoingDate || todayStr(0);
         return;
@@ -1659,16 +1675,32 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
       var max = maxOutSeq();
       var updates = [];
       var unnumbered = [];
+      var seen = {};
+      var dupes = [];
       requests.forEach(function(r){
         if(r.status !== "printed") return;
         var L = deptLetter(r.dept); if(!L) return;
         if(r.outgoing){
           var s = parseOutSeq(r.outgoing);
           if(!s) return;
-          var nf = newOutFormat(L, s);
+          var sL = parseOutLetter(r.outgoing) || L;
+          var key = sL + "|" + s;
+          if(seen[key]){ dupes.push(r); return; }
+          seen[key] = true;
+          var nf = newOutFormat(sL, s);
           var nd = dateFixDone ? (r.outgoingDate || today) : today;
           if(nf !== r.outgoing || nd !== (r.outgoingDate || "")) updates.push({ id: r.id, outgoing: nf, outgoingDate: nd });
         } else unnumbered.push(r);
+      });
+      /* إصلاح الأرقام المكررة: كتابان بنفس الحرف والتسلسل — الأول
+         (الأصغر برقم الطلب) يبقى رقمه، والمكرر يأخذ تسلسلاً جديداً
+         بنفس حرفه مع حفظ رقمه القديم في outgoingPrev وتاريخه كما هو */
+      dupes.sort(function(a,b){ return reqNum(a) - reqNum(b); });
+      dupes.forEach(function(r){
+        var sL = parseOutLetter(r.outgoing) || deptLetter(r.dept);
+        if(!sL) return;
+        max[sL] = (max[sL] || 0) + 1;
+        updates.push({ id: r.id, outgoing: newOutFormat(sL, max[sL]), outgoingDate: r.outgoingDate || today, outgoingPrev: r.outgoing });
       });
       unnumbered.sort(function(a,b){ return reqNum(a) - reqNum(b); });
       unnumbered.forEach(function(r){
@@ -1685,7 +1717,11 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
         pending++;
         (function(chunk){
           var batch = db.batch();
-          chunk.forEach(function(u){ batch.update(db.collection("requests").doc(u.id), { outgoing: u.outgoing, outgoingDate: u.outgoingDate }); });
+          chunk.forEach(function(u){
+            var upd = { outgoing: u.outgoing, outgoingDate: u.outgoingDate };
+            if(u.outgoingPrev) upd.outgoingPrev = u.outgoingPrev;
+            batch.update(db.collection("requests").doc(u.id), upd);
+          });
           batch.commit().then(function(){ if(--pending === 0) done(); }).catch(function(){ if(--pending === 0) done(); });
         })(updates.slice(i, i + 450));
       }
