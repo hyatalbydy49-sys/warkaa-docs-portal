@@ -1645,39 +1645,51 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
   }
   /* ترحيل الكتب القديمة الصادرة: تحويل الصيغة القديمة للجديدة بنفس
      التسلسل، وإسناد أرقام لمن لا رقم له بترتيب رقم الطلب داخل كل قسم.
-     يعمل مرة واحدة عند فتح لوحة الموظفين ولا يكتب إلا ما تغيّر. */
+     يعمل مرة واحدة عند فتح لوحة الموظفين ولا يكتب إلا ما تغيّر.
+     تحديث التاريخ لتاريخ اليوم يصير مرة واحدة فقط (علم في الإعدادات)
+     حتى لا يتحدث تاريخ الكتب بعدها أبداً. */
   var outgoingMigrated = false;
   function migrateOldOutgoing(){
     if(outgoingMigrated || !db) return;
     outgoingMigrated = true;
-    var max = maxOutSeq();
-    var updates = [];
-    var unnumbered = [];
-    requests.forEach(function(r){
-      if(r.status !== "printed") return;
-      var L = deptLetter(r.dept); if(!L) return;
-      if(r.outgoing){
-        var s = parseOutSeq(r.outgoing);
-        if(s){
+    db.collection("settings").doc("site").get().then(function(snap){
+      var st = snap.exists ? (snap.data() || {}) : {};
+      var dateFixDone = !!st.outDateFixDone;
+      var today = todayStr(0);
+      var max = maxOutSeq();
+      var updates = [];
+      var unnumbered = [];
+      requests.forEach(function(r){
+        if(r.status !== "printed") return;
+        var L = deptLetter(r.dept); if(!L) return;
+        if(r.outgoing){
+          var s = parseOutSeq(r.outgoing);
+          if(!s) return;
           var nf = newOutFormat(L, s);
-          if(nf !== r.outgoing) updates.push({ id: r.id, outgoing: nf, outgoingDate: r.outgoingDate || r.date || todayStr(0) });
-        }
-      } else unnumbered.push(r);
-    });
-    unnumbered.sort(function(a,b){ return reqNum(a) - reqNum(b); });
-    unnumbered.forEach(function(r){
-      var L = deptLetter(r.dept);
-      max[L] = (max[L] || 0) + 1;
-      updates.push({ id: r.id, outgoing: newOutFormat(L, max[L]), outgoingDate: r.date || todayStr(0) });
-    });
-    if(!updates.length) return;
-    for(var i = 0; i < updates.length; i += 450){
-      (function(chunk){
-        var batch = db.batch();
-        chunk.forEach(function(u){ batch.update(db.collection("requests").doc(u.id), { outgoing: u.outgoing, outgoingDate: u.outgoingDate }); });
-        batch.commit().catch(function(){});
-      })(updates.slice(i, i + 450));
-    }
+          var nd = dateFixDone ? (r.outgoingDate || today) : today;
+          if(nf !== r.outgoing || nd !== (r.outgoingDate || "")) updates.push({ id: r.id, outgoing: nf, outgoingDate: nd });
+        } else unnumbered.push(r);
+      });
+      unnumbered.sort(function(a,b){ return reqNum(a) - reqNum(b); });
+      unnumbered.forEach(function(r){
+        var L = deptLetter(r.dept);
+        max[L] = (max[L] || 0) + 1;
+        updates.push({ id: r.id, outgoing: newOutFormat(L, max[L]), outgoingDate: today });
+      });
+      var done = function(){
+        if(!dateFixDone) db.collection("settings").doc("site").set({ outDateFixDone: true }, { merge: true }).catch(function(){});
+      };
+      if(!updates.length){ done(); return; }
+      var pending = 0;
+      for(var i = 0; i < updates.length; i += 450){
+        pending++;
+        (function(chunk){
+          var batch = db.batch();
+          chunk.forEach(function(u){ batch.update(db.collection("requests").doc(u.id), { outgoing: u.outgoing, outgoingDate: u.outgoingDate }); });
+          batch.commit().then(function(){ if(--pending === 0) done(); }).catch(function(){ if(--pending === 0) done(); });
+        })(updates.slice(i, i + 450));
+      }
+    }).catch(function(){});
   }
   function fixDeptName(r){
     if(r && DEPT_FIX[r.dept]) r.dept = DEPT_FIX[r.dept];
