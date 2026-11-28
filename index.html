@@ -1589,7 +1589,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
   var MORNING_ONLY = ["طب الأسنان","الصيدلة","تقنيات المختبرات الطبية"];
   var DEPT_FIX = {"التخدير":"تقنيات التخدير","المختبرات الطبية":"تقنيات المختبرات الطبية","علوم التحليلات":"علوم التحليلات المرضية","تصميم الداخلي":"تقنيات التصميم الداخلي"};
   function isMorningOnly(dept){ return MORNING_ONLY.indexOf(dept) !== -1; }
-  /* رقم الصادر (العدد): ش ط / حرف القسم / 1802 / تسلسل — ش ط شعبة شؤون الطلبة و1802 رقم صادر شعبة
+  /* رقم الصادر (العدد): ش ط / حرف القسم / تسلسل / 1802 — ش ط شعبة شؤون الطلبة و1802 رقم صادر شعبة
      التسجيل وشؤون الطلبة (من شعبة الشؤون)، والتسلسل يصعد لكل قسم وحده
      من 1، ويُسند تلقائياً عند إصدار الكتاب ويُحفظ على الطلب نفسه حتى
      لا يتغير عند إعادة الطباعة. */
@@ -1598,11 +1598,15 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
     var d = DEPT_FIX[dept] || dept || "";
     return DEPT_LETTER[d] || "";
   }
-  /* استخراج التسلسل من أي صيغة رقم صادر قديمة أو جديدة */
+  /* استخراج التسلسل من أي صيغة رقم صادر قديمة أو جديدة — الصيغة الحالية
+     «ش ط/حرف/تسلسل/1802» والتسلسل قبل 1802، والصيغ الأقدم كان التسلسل
+     آخر مقطع بعد 1802، فنميّز بموقع 1802 نفسه */
   function parseOutSeq(out){
     if(!out) return 0;
     var parts = String(out).split("/");
-    var n = parseInt(parts[parts.length - 1], 10);
+    var last = parts[parts.length - 1].trim();
+    var pick = (last === "1802" && parts.length > 1) ? parts[parts.length - 2] : last;
+    var n = parseInt(pick, 10);
     return isNaN(n) ? 0 : n;
   }
   /* استخراج حرف القسم من الرقم المحفوظ نفسه — الرقم المحفوظ هو المرجع،
@@ -1618,7 +1622,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
     }
     return "";
   }
-  function newOutFormat(L, seq){ return "ش ط/" + L + "/1802/" + seq; }
+  function newOutFormat(L, seq){ return "ش ط/" + L + "/" + seq + "/1802"; }
   function maxOutSeq(){
     var max = {};
     requests.forEach(function(r){
