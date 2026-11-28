@@ -1589,7 +1589,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
   var MORNING_ONLY = ["طب الأسنان","الصيدلة","تقنيات المختبرات الطبية"];
   var DEPT_FIX = {"التخدير":"تقنيات التخدير","المختبرات الطبية":"تقنيات المختبرات الطبية","علوم التحليلات":"علوم التحليلات المرضية","تصميم الداخلي":"تقنيات التصميم الداخلي"};
   function isMorningOnly(dept){ return MORNING_ONLY.indexOf(dept) !== -1; }
-  /* رقم الصادر (العدد): حرف القسم / 1802 / تسلسل — 1802 رقم صادر شعبة
+  /* رقم الصادر (العدد): ش ط / حرف القسم / 1802 / تسلسل — ش ط شعبة شؤون الطلبة و1802 رقم صادر شعبة
      التسجيل وشؤون الطلبة (من شعبة الشؤون)، والتسلسل يصعد لكل قسم وحده
      من 1، ويُسند تلقائياً عند إصدار الكتاب ويُحفظ على الطلب نفسه حتى
      لا يتغير عند إعادة الطباعة. */
@@ -1613,7 +1613,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
       var L = deptLetter(r.dept);
       if(!L){ r._outNum = ""; r._outDate = ""; r._outNew = false; return; }
       counts[L] = (counts[L] || 0) + 1;
-      r._outNum = L + "/1802/" + counts[L];
+      r._outNum = "ش ط/" + L + "/1802/" + counts[L];
       r._outDate = todayStr(0);
       r._outNew = true;
     });
