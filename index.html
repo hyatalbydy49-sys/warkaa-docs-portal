@@ -3255,6 +3255,15 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
   function repAll(text, search, replacement){
     return text.split(search).join(replacement);
   }
+  /* حجم خط العنوان (سطرا «إلى/» و«م/») = 16 في كل الكتب — طلب شعبة
+     التسجيل: القوالب الرسمية مصممة العنوان أكبر من المتن، فنوحّده
+     على 16 عند تحميل القالب مهما كان حجمه الأصلي في الملف */
+  function resizeTitleXml(xml){
+    return String(xml || "").replace(/<w:p[\s>][\s\S]*?<\/w:p>/g, function(p){
+      if(p.indexOf("اسم_المدرسة_كاملاً") === -1 && p.indexOf("الجهة_الموجه_لها_التأييد") === -1 && p.indexOf("وثيقة") === -1 && p.indexOf("م/ تأييد") === -1) return p;
+      return p.replace(/<w:sz w:val="\d+"\/>/g, '<w:sz w:val="32"/>').replace(/<w:szCs w:val="\d+"\/>/g, '<w:szCs w:val="32"/>');
+    });
+  }
   /* تحميل قالب: من مجلد templates/ بالمستودع للقوالب الرسمية،
      ومن مقاطع Firestore للقوالب المرفوعة (تُقرأ المقاطع فقط هنا، عند التنزيل). */
   var tplCache = {};
@@ -3277,7 +3286,7 @@ var MOHE_LOGO = "data:image/gif;base64,R0lGODlhzQzuAfcAAAUFBRAQECUbGyUlJTs7O0U7R
         if(!docFile) throw new Error("template-load-failed");
         return docFile.async("string");
       }).then(function(xml){
-        return { buf: buf, xml: xml };
+        return { buf: buf, xml: resizeTitleXml(xml) };
       });
     });
     tplCache[key] = p;
